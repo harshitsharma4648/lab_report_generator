@@ -12,6 +12,6 @@
   "react": "19.1.0",
   "react-dom": "19.1.0",
   "pdf-lib": "^1.17.1",
-  "pdfjs-dist": "^5.4.149"
+  "pdfjs-dist": "^4.10.38"
   }
 }
