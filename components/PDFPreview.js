@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export default function PDFPreview({ file }) {
   const canvasRef = useRef(null);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -18,16 +18,15 @@ export default function PDFPreview({ file }) {
         setLoading(true);
         setError("");
 
-        const pdfjsLib = await import("pdfjs-dist");
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs`;
+        const data = await file.arrayBuffer();
 
-        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjs.getDocument({
+          data: new Uint8Array(data),
+        });
 
-        const pdf = await pdfjsLib.getDocument({
-          data: arrayBuffer,
-        }).promise;
+        const pdf = await loadingTask.promise;
 
         if (cancelled) return;
 
@@ -39,17 +38,24 @@ export default function PDFPreview({ file }) {
 
         const context = canvas.getContext("2d");
 
-        const containerWidth =
-          canvas.parentElement.clientWidth;
-
         const originalViewport =
-          page.getViewport({ scale: 1 });
+          page.getViewport({
+            scale: 1,
+          });
+
+        const parentWidth =
+          canvas.parentElement.clientWidth - 20;
 
         const scale =
-          containerWidth / originalViewport.width;
+          Math.min(
+            parentWidth / originalViewport.width,
+            1.5
+          );
 
         const viewport =
-          page.getViewport({ scale });
+          page.getViewport({
+            scale,
+          });
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -60,17 +66,20 @@ export default function PDFPreview({ file }) {
         }).promise;
 
       } catch (err) {
-        console.error(err);
+        console.error("PDF ERROR:", err);
 
         if (!cancelled) {
           setError(
             "Unable to display this PDF preview."
           );
         }
+
       } finally {
+
         if (!cancelled) {
           setLoading(false);
         }
+
       }
     }
 
@@ -81,10 +90,6 @@ export default function PDFPreview({ file }) {
     };
 
   }, [file]);
-
-  if (!file) {
-    return null;
-  }
 
   return (
     <div className="pdf-preview-container">
@@ -108,4 +113,4 @@ export default function PDFPreview({ file }) {
 
     </div>
   );
-      }
+            }
