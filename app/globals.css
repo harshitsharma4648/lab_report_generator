@@ -325,3 +325,115 @@ footer {
   }
 
 }
+
+/* Template Name */
+
+.template-name {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.template-name input {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+
+/* Secondary Button */
+
+.secondary-button {
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: #374151;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #1f2937;
+}
+
+
+/* Saved Templates */
+
+.saved-templates {
+  margin-bottom: 30px;
+}
+
+.saved-templates h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+
+.saved-template {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  margin-bottom: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.saved-template strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.saved-template small {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.template-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.template-actions button {
+  border: none;
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: #e5e7eb;
+  color: #374151;
+  font-weight: 600;
+}
+
+.template-actions button:hover {
+  background: #d1d5db;
+}
+
+
+@media (max-width: 600px) {
+
+  .saved-template {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .template-actions {
+    width: 100%;
+  }
+
+  .template-actions button {
+    flex: 1;
+  }
+
+}
