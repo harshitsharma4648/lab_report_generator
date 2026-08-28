@@ -2,34 +2,47 @@
 
 import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
-import PDFPreview from "../components/PDFPreview";
 
 export default function Home() {
 
   const [reportFile, setReportFile] = useState(null);
   const [templateFile, setTemplateFile] = useState(null);
 
-  const [downloadUrl, setDownloadUrl] = useState(null);
+  const [topMargin, setTopMargin] = useState(70);
+  const [bottomMargin, setBottomMargin] = useState(70);
+  const [leftMargin, setLeftMargin] = useState(0);
+  const [rightMargin, setRightMargin] = useState(0);
 
   const [loading, setLoading] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState(null);
   const [message, setMessage] = useState("");
 
-  function handleReportUpload(event) {
+  function handleReport(event) {
 
     const file = event.target.files?.[0];
 
     if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setMessage("Please select a PDF file.");
+      return;
+    }
 
     setReportFile(file);
     setDownloadUrl(null);
     setMessage("");
   }
 
-  function handleTemplateUpload(event) {
+  function handleTemplate(event) {
 
     const file = event.target.files?.[0];
 
     if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setMessage("Please select a PDF file.");
+      return;
+    }
 
     setTemplateFile(file);
     setDownloadUrl(null);
@@ -39,16 +52,12 @@ export default function Home() {
   async function generateReport() {
 
     if (!reportFile) {
-      setMessage(
-        "Please upload the main laboratory report."
-      );
+      setMessage("Please upload the main laboratory report.");
       return;
     }
 
     if (!templateFile) {
-      setMessage(
-        "Please upload the laboratory template."
-      );
+      setMessage("Please upload your laboratory template.");
       return;
     }
 
@@ -74,37 +83,21 @@ export default function Home() {
         await PDFDocument.create();
 
       const reportPages =
-        await finalPDF.copyPages(
-          reportPDF,
-          reportPDF.getPageIndices()
-        );
+        await reportPDF.getPages();
 
       const templatePages =
-        await finalPDF.copyPages(
-          templatePDF,
-          templatePDF.getPageIndices()
-        );
+        await templatePDF.getPages();
 
-      for (
-        let i = 0;
-        i < reportPages.length;
-        i++
-      ) {
+      for (let i = 0; i < reportPages.length; i++) {
 
         const reportPage =
           reportPages[i];
 
-        const width =
+        const reportWidth =
           reportPage.getWidth();
 
-        const height =
+        const reportHeight =
           reportPage.getHeight();
-
-        const page =
-          finalPDF.addPage([
-            width,
-            height,
-          ]);
 
         const templatePage =
           templatePages[
@@ -114,23 +107,110 @@ export default function Home() {
             )
           ];
 
+        const templateWidth =
+          templatePage.getWidth();
+
+        const templateHeight =
+          templatePage.getHeight();
+
+        const page =
+          finalPDF.addPage([
+            templateWidth,
+            templateHeight
+          ]);
+
+        /*
+         * Draw the template first.
+         * This becomes the background.
+         */
+
+        const [templateEmbedded] =
+          await finalPDF.embedPages([
+            templatePage
+          ]);
+
         page.drawPage(
-          templatePage,
+          templateEmbedded,
           {
             x: 0,
             y: 0,
-            width: width,
-            height: height,
+            width: templateWidth,
+            height: templateHeight
           }
         );
 
+        /*
+         * Calculate available report area.
+         */
+
+        const availableWidth =
+          templateWidth -
+          leftMargin -
+          rightMargin;
+
+        const availableHeight =
+          templateHeight -
+          topMargin -
+          bottomMargin;
+
+        /*
+         * Scale the report so it fits
+         * inside the selected area.
+         */
+
+        const widthScale =
+          availableWidth /
+          reportWidth;
+
+        const heightScale =
+          availableHeight /
+          reportHeight;
+
+        const scale =
+          Math.min(
+            widthScale,
+            heightScale
+          );
+
+        const finalWidth =
+          reportWidth * scale;
+
+        const finalHeight =
+          reportHeight * scale;
+
+        /*
+         * Center report horizontally
+         * inside the available area.
+         */
+
+        const x =
+          leftMargin +
+          (availableWidth - finalWidth) / 2;
+
+        /*
+         * PDF coordinates start
+         * from the bottom.
+         */
+
+        const y =
+          bottomMargin;
+
+        /*
+         * Embed the report page.
+         */
+
+        const [reportEmbedded] =
+          await finalPDF.embedPages([
+            reportPage
+          ]);
+
         page.drawPage(
-          reportPage,
+          reportEmbedded,
           {
-            x: 0,
-            y: 0,
-            width: width,
-            height: height,
+            x: x,
+            y: y,
+            width: finalWidth,
+            height: finalHeight
           }
         );
       }
@@ -142,7 +222,7 @@ export default function Home() {
         new Blob(
           [finalBytes],
           {
-            type: "application/pdf",
+            type: "application/pdf"
           }
         );
 
@@ -152,7 +232,7 @@ export default function Home() {
       setDownloadUrl(url);
 
       setMessage(
-        "Report generated successfully!"
+        "Final laboratory report generated successfully."
       );
 
     } catch (error) {
@@ -160,7 +240,7 @@ export default function Home() {
       console.error(error);
 
       setMessage(
-        "Unable to generate the report."
+        "Unable to generate the final PDF."
       );
 
     } finally {
@@ -185,8 +265,8 @@ export default function Home() {
         </h1>
 
         <p>
-          Generate a professional laboratory
-          report using your laboratory template.
+          Add your laboratory template
+          to the main laboratory report.
         </p>
 
       </header>
@@ -204,8 +284,8 @@ export default function Home() {
           </h2>
 
           <p>
-            Upload the PDF received from the
-            main laboratory.
+            Upload the PDF received
+            from the main laboratory.
           </p>
 
           <label className="upload-box">
@@ -217,7 +297,7 @@ export default function Home() {
             <strong>
               {reportFile
                 ? reportFile.name
-                : "Choose Report PDF"}
+                : "Choose Main Lab PDF"}
             </strong>
 
             <small>
@@ -227,33 +307,12 @@ export default function Home() {
             <input
               type="file"
               accept="application/pdf"
-              onChange={
-                handleReportUpload
-              }
+              onChange={handleReport}
             />
 
           </label>
 
         </div>
-
-
-        {/* REPORT PREVIEW */}
-
-        {reportFile && (
-
-          <div className="preview-section">
-
-            <h3>
-              Report Preview
-            </h3>
-
-            <PDFPreview
-              file={reportFile}
-            />
-
-          </div>
-
-        )}
 
 
         {/* TEMPLATE */}
@@ -265,8 +324,8 @@ export default function Home() {
           </h2>
 
           <p>
-            Upload your laboratory header
-            and footer template.
+            Upload your laboratory
+            header and footer template.
           </p>
 
           <label className="upload-box">
@@ -278,7 +337,7 @@ export default function Home() {
             <strong>
               {templateFile
                 ? templateFile.name
-                : "Choose Template PDF"}
+                : "Choose Lab Template"}
             </strong>
 
             <small>
@@ -288,9 +347,7 @@ export default function Home() {
             <input
               type="file"
               accept="application/pdf"
-              onChange={
-                handleTemplateUpload
-              }
+              onChange={handleTemplate}
             />
 
           </label>
@@ -298,23 +355,89 @@ export default function Home() {
         </div>
 
 
-        {/* TEMPLATE PREVIEW */}
+        {/* POSITION SETTINGS */}
 
-        {templateFile && (
+        <div className="settings">
 
-          <div className="preview-section">
+          <h2>
+            3. Report Position
+          </h2>
 
-            <h3>
-              Template Preview
-            </h3>
+          <p>
+            Adjust these values to control
+            where the main report appears
+            on your laboratory template.
+          </p>
 
-            <PDFPreview
-              file={templateFile}
-            />
+
+          <div className="settings-grid">
+
+            <label>
+              Top Margin
+
+              <input
+                type="number"
+                value={topMargin}
+                onChange={(e) =>
+                  setTopMargin(
+                    Number(e.target.value)
+                  )
+                }
+              />
+
+            </label>
+
+
+            <label>
+              Bottom Margin
+
+              <input
+                type="number"
+                value={bottomMargin}
+                onChange={(e) =>
+                  setBottomMargin(
+                    Number(e.target.value)
+                  )
+                }
+              />
+
+            </label>
+
+
+            <label>
+              Left Margin
+
+              <input
+                type="number"
+                value={leftMargin}
+                onChange={(e) =>
+                  setLeftMargin(
+                    Number(e.target.value)
+                  )
+                }
+              />
+
+            </label>
+
+
+            <label>
+              Right Margin
+
+              <input
+                type="number"
+                value={rightMargin}
+                onChange={(e) =>
+                  setRightMargin(
+                    Number(e.target.value)
+                  )
+                }
+              />
+
+            </label>
 
           </div>
 
-        )}
+        </div>
 
 
         {/* GENERATE */}
@@ -326,7 +449,7 @@ export default function Home() {
         >
 
           {loading
-            ? "Generating Report..."
+            ? "Generating..."
             : "Generate Final Report"}
 
         </button>
@@ -352,7 +475,7 @@ export default function Home() {
             download="medical-lab-report.pdf"
             className="download-button"
           >
-            ⬇️ Download Final PDF
+            ⬇️ Download Final Report
           </a>
 
         )}
@@ -362,12 +485,12 @@ export default function Home() {
 
       <footer>
 
-        🔒 Your PDF is processed directly
-        in your browser.
+        🔒 All PDF processing happens
+        directly in your browser.
 
         <br />
 
-        No database or backend is required.
+        No database • No backend • No server upload
 
       </footer>
 
