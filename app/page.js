@@ -4,7 +4,6 @@ import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
 
 export default function Home() {
-
   const [reportFile, setReportFile] = useState(null);
   const [templateFile, setTemplateFile] = useState(null);
 
@@ -18,15 +17,9 @@ export default function Home() {
   const [message, setMessage] = useState("");
 
   function handleReport(event) {
-
     const file = event.target.files?.[0];
 
     if (!file) return;
-
-    if (file.type !== "application/pdf") {
-      setMessage("Please select a PDF file.");
-      return;
-    }
 
     setReportFile(file);
     setDownloadUrl(null);
@@ -34,15 +27,9 @@ export default function Home() {
   }
 
   function handleTemplate(event) {
-
     const file = event.target.files?.[0];
 
     if (!file) return;
-
-    if (file.type !== "application/pdf") {
-      setMessage("Please select a PDF file.");
-      return;
-    }
 
     setTemplateFile(file);
     setDownloadUrl(null);
@@ -50,99 +37,63 @@ export default function Home() {
   }
 
   async function generateReport() {
-
     if (!reportFile) {
       setMessage("Please upload the main laboratory report.");
       return;
     }
 
     if (!templateFile) {
-      setMessage("Please upload your laboratory template.");
+      setMessage("Please upload the laboratory template.");
       return;
     }
 
     try {
-
       setLoading(true);
       setMessage("");
       setDownloadUrl(null);
 
-      const reportBytes =
-        await reportFile.arrayBuffer();
+      const reportBytes = await reportFile.arrayBuffer();
+      const templateBytes = await templateFile.arrayBuffer();
 
-      const templateBytes =
-        await templateFile.arrayBuffer();
+      const reportPDF = await PDFDocument.load(reportBytes);
+      const templatePDF = await PDFDocument.load(templateBytes);
 
-      const reportPDF =
-        await PDFDocument.load(reportBytes);
+      const finalPDF = await PDFDocument.create();
 
-      const templatePDF =
-        await PDFDocument.load(templateBytes);
+      const reportPageCount = reportPDF.getPageCount();
+      const templatePageCount = templatePDF.getPageCount();
 
-      const finalPDF =
-        await PDFDocument.create();
-
-      const reportPages =
-        await reportPDF.getPages();
-
-      const templatePages =
-        await templatePDF.getPages();
-
-      for (let i = 0; i < reportPages.length; i++) {
-
-        const reportPage =
-          reportPages[i];
-
-        const reportWidth =
-          reportPage.getWidth();
-
-        const reportHeight =
-          reportPage.getHeight();
+      for (let i = 0; i < reportPageCount; i++) {
+        const reportPage = reportPDF.getPage(i);
 
         const templatePage =
-          templatePages[
-            Math.min(
-              i,
-              templatePages.length - 1
-            )
-          ];
+          templatePDF.getPage(
+            Math.min(i, templatePageCount - 1)
+          );
 
-        const templateWidth =
-          templatePage.getWidth();
+        const templateWidth = templatePage.getWidth();
+        const templateHeight = templatePage.getHeight();
 
-        const templateHeight =
-          templatePage.getHeight();
+        const reportWidth = reportPage.getWidth();
+        const reportHeight = reportPage.getHeight();
 
-        const page =
-          finalPDF.addPage([
-            templateWidth,
-            templateHeight
-          ]);
+        const page = finalPDF.addPage([
+          templateWidth,
+          templateHeight,
+        ]);
 
-        /*
-         * Draw the template first.
-         * This becomes the background.
-         */
-
+        // Copy template page into final PDF
         const [templateEmbedded] =
-          await finalPDF.embedPages([
-            templatePage
-          ]);
+          await finalPDF.embedPages([templatePage]);
 
-        page.drawPage(
-          templateEmbedded,
-          {
-            x: 0,
-            y: 0,
-            width: templateWidth,
-            height: templateHeight
-          }
-        );
+        page.drawPage(templateEmbedded, {
+          x: 0,
+          y: 0,
+          width: templateWidth,
+          height: templateHeight,
+        });
 
-        /*
-         * Calculate available report area.
-         */
-
+        // Available report area
         const availableWidth =
           templateWidth -
           leftMargin -
@@ -153,24 +104,11 @@ export default function Home() {
           topMargin -
           bottomMargin;
 
-        /*
-         * Scale the report so it fits
-         * inside the selected area.
-         */
-
-        const widthScale =
-          availableWidth /
-          reportWidth;
-
-        const heightScale =
-          availableHeight /
-          reportHeight;
-
-        const scale =
-          Math.min(
-            widthScale,
-            heightScale
-          );
+        // Calculate scale
+        const scale = Math.min(
+          availableWidth / reportWidth,
+          availableHeight / reportHeight
+        );
 
         const finalWidth =
           reportWidth * scale;
@@ -178,104 +116,72 @@ export default function Home() {
         const finalHeight =
           reportHeight * scale;
 
-        /*
-         * Center report horizontally
-         * inside the available area.
-         */
-
+        // Center horizontally
         const x =
           leftMargin +
           (availableWidth - finalWidth) / 2;
 
-        /*
-         * PDF coordinates start
-         * from the bottom.
-         */
+        const y = bottomMargin;
 
-        const y =
-          bottomMargin;
-
-        /*
-         * Embed the report page.
-         */
-
+        // Copy report page
         const [reportEmbedded] =
-          await finalPDF.embedPages([
-            reportPage
-          ]);
+          await finalPDF.embedPages([reportPage]);
 
-        page.drawPage(
-          reportEmbedded,
-          {
-            x: x,
-            y: y,
-            width: finalWidth,
-            height: finalHeight
-          }
-        );
+        page.drawPage(reportEmbedded, {
+          x,
+          y,
+          width: finalWidth,
+          height: finalHeight,
+        });
       }
 
-      const finalBytes =
-        await finalPDF.save();
+      const pdfBytes = await finalPDF.save();
 
-      const blob =
-        new Blob(
-          [finalBytes],
-          {
-            type: "application/pdf"
-          }
-        );
+      const blob = new Blob(
+        [pdfBytes],
+        {
+          type: "application/pdf",
+        }
+      );
 
-      const url =
-        URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
 
       setDownloadUrl(url);
 
       setMessage(
         "Final laboratory report generated successfully."
       );
-
     } catch (error) {
-
-      console.error(error);
+      console.error("PDF GENERATION ERROR:", error);
 
       setMessage(
-        "Unable to generate the final PDF."
+        "PDF generation failed: " +
+        (error?.message || "Unknown error")
       );
-
     } finally {
-
       setLoading(false);
-
     }
   }
 
   return (
-
     <main className="container">
 
       <header>
-
-        <div className="logo">
-          🧪
-        </div>
+        <div className="logo">🧪</div>
 
         <h1>
           Medical Lab Report Generator
         </h1>
 
         <p>
-          Add your laboratory template
-          to the main laboratory report.
+          Add your laboratory template to the
+          main laboratory report.
         </p>
-
       </header>
-
 
       <section className="card">
 
-
-        {/* MAIN REPORT */}
+        {/* REPORT */}
 
         <div className="upload-section">
 
@@ -284,8 +190,8 @@ export default function Home() {
           </h2>
 
           <p>
-            Upload the PDF received
-            from the main laboratory.
+            Upload the PDF received from the
+            main laboratory.
           </p>
 
           <label className="upload-box">
@@ -324,8 +230,8 @@ export default function Home() {
           </h2>
 
           <p>
-            Upload your laboratory
-            header and footer template.
+            Upload your laboratory header and
+            footer template.
           </p>
 
           <label className="upload-box">
@@ -355,7 +261,7 @@ export default function Home() {
         </div>
 
 
-        {/* POSITION SETTINGS */}
+        {/* SETTINGS */}
 
         <div className="settings">
 
@@ -364,11 +270,9 @@ export default function Home() {
           </h2>
 
           <p>
-            Adjust these values to control
-            where the main report appears
-            on your laboratory template.
+            These values control the report
+            area on your template.
           </p>
-
 
           <div className="settings-grid">
 
@@ -387,7 +291,6 @@ export default function Home() {
 
             </label>
 
-
             <label>
               Bottom Margin
 
@@ -403,7 +306,6 @@ export default function Home() {
 
             </label>
 
-
             <label>
               Left Margin
 
@@ -418,7 +320,6 @@ export default function Home() {
               />
 
             </label>
-
 
             <label>
               Right Margin
@@ -447,29 +348,24 @@ export default function Home() {
           onClick={generateReport}
           disabled={loading}
         >
-
           {loading
             ? "Generating..."
             : "Generate Final Report"}
-
         </button>
 
 
         {/* MESSAGE */}
 
         {message && (
-
           <div className="message">
             {message}
           </div>
-
         )}
 
 
         {/* DOWNLOAD */}
 
         {downloadUrl && (
-
           <a
             href={downloadUrl}
             download="medical-lab-report.pdf"
@@ -477,23 +373,17 @@ export default function Home() {
           >
             ⬇️ Download Final Report
           </a>
-
         )}
 
       </section>
 
-
       <footer>
-
-        🔒 All PDF processing happens
-        directly in your browser.
-
+        🔒 All PDF processing happens directly
+        in your browser.
         <br />
-
         No database • No backend • No server upload
-
       </footer>
 
     </main>
   );
-      }
+                     }
