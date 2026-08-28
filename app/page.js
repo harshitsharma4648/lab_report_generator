@@ -458,169 +458,235 @@ function resetReportPosition() {
    */
 
   async function generateReport() {
-    if (!reportFile) {
-      setMessage(
-        "Please select or drop the main laboratory PDF first."
+  if (!reportFile) {
+    setMessage(
+      "Please select or drop the main laboratory PDF first."
+    );
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setMessage("");
+    setDownloadUrl(null);
+
+    /*
+     * Load the main laboratory report
+     */
+
+    const reportBytes =
+      await reportFile.arrayBuffer();
+
+    const reportPDF =
+      await PDFDocument.load(
+        reportBytes
       );
-      return;
+
+    /*
+     * Load the laboratory template
+     */
+
+    const templateResponse =
+      await fetch(
+        "/sample-template.pdf"
+      );
+
+    if (!templateResponse.ok) {
+      throw new Error(
+        "Unable to load laboratory template."
+      );
     }
 
-    try {
-      setLoading(true);
-      setMessage("");
-      setDownloadUrl(null);
+    const templateBytes =
+      await templateResponse.arrayBuffer();
 
-      const reportBytes =
-        await reportFile.arrayBuffer();
+    const templatePDF =
+      await PDFDocument.load(
+        templateBytes
+      );
 
-      const reportPDF =
-        await PDFDocument.load(
-          reportBytes
-        );
+    /*
+     * Create final PDF
+     */
 
-      const templateResponse =
-        await fetch(
-          "/sample-template.pdf"
-        );
+    const finalPDF =
+      await PDFDocument.create();
 
-      if (!templateResponse.ok) {
-        throw new Error(
-          "Sample template PDF could not be loaded."
-        );
-      }
+    /*
+     * Get template page size
+     */
 
-      const templateBytes =
-        await templateResponse.arrayBuffer();
+    const templatePage =
+      templatePDF.getPage(0);
 
-      const templatePDF =
-        await PDFDocument.load(
-          templateBytes
-        );
+    const templateWidth =
+      templatePage.getWidth();
 
-      const finalPDF =
-        await PDFDocument.create();
+    const templateHeight =
+      templatePage.getHeight();
 
-      for (
-        let i = 0;
-        i < reportPDF.getPageCount();
-        i++
-      ) {
-        const reportPage =
-          reportPDF.getPage(i);
+    /*
+     * Embed template once
+     */
 
-        const templatePage =
-          templatePDF.getPage(0);
+    const [
+      templateEmbedded,
+    ] =
+      await finalPDF.embedPages([
+        templatePage,
+      ]);
 
-        const templateWidth =
-          templatePage.getWidth();
+    /*
+     * Process EVERY report page
+     */
 
-        const templateHeight =
-          templatePage.getHeight();
+    for (
+      let i = 0;
+      i < reportPDF.getPageCount();
+      i++
+    ) {
+      const reportPage =
+        reportPDF.getPage(i);
 
-        const finalPage =
-          finalPDF.addPage([
+      /*
+       * Create a new page
+       * using template size.
+       */
+
+      const finalPage =
+        finalPDF.addPage([
+          templateWidth,
+          templateHeight,
+        ]);
+
+      /*
+       * Draw laboratory template
+       */
+
+      finalPage.drawPage(
+        templateEmbedded,
+        {
+          x: 0,
+          y: 0,
+
+          width:
             templateWidth,
+
+          height:
             templateHeight,
-          ]);
+        }
+      );
 
-        const [
-          templateEmbedded,
-        ] =
-          await finalPDF.embedPages([
-            templatePage,
-          ]);
+      /*
+       * Embed current report page
+       */
 
-        finalPage.drawPage(
-          templateEmbedded,
-          {
-            x: 0,
-            y: 0,
-            width: templateWidth,
-            height: templateHeight,
-          }
-        );
+      const [
+        reportEmbedded,
+      ] =
+        await finalPDF.embedPages([
+          reportPage,
+        ]);
 
-        const [
-          reportEmbedded,
-        ] =
-          await finalPDF.embedPages([
-            reportPage,
-          ]);
+      /*
+       * Convert editor coordinates
+       * into real PDF coordinates.
+       */
 
-        const scaleX =
-          templateWidth /
-          TEMPLATE_WIDTH;
+      const scaleX =
+        templateWidth /
+        TEMPLATE_WIDTH;
 
-        const scaleY =
-          templateHeight /
-          TEMPLATE_HEIGHT;
+      const scaleY =
+        templateHeight /
+        TEMPLATE_HEIGHT;
 
-        const x =
-          reportPosition.x *
-          scaleX;
+      const x =
+        reportPosition.x *
+        scaleX;
 
-        const width =
-          reportPosition.width *
-          scaleX;
+      const width =
+        reportPosition.width *
+        scaleX;
 
-        const height =
-          reportPosition.height *
+      const height =
+        reportPosition.height *
+        scaleY;
+
+      /*
+       * Browser/editor Y starts
+       * from TOP.
+       *
+       * PDF Y starts from BOTTOM.
+       */
+
+      const y =
+        templateHeight -
+        (
+          reportPosition.y +
+          reportPosition.height
+        ) *
           scaleY;
 
-        const y =
-          templateHeight -
-          (
-            reportPosition.y +
-            reportPosition.height
-          ) *
-            scaleY;
+      /*
+       * Draw report page
+       */
 
-        finalPage.drawPage(
-          reportEmbedded,
-          {
-            x,
-            y,
-            width,
-            height,
-          }
-        );
-      }
-
-      const finalBytes =
-        await finalPDF.save();
-
-      const blob =
-        new Blob(
-          [finalBytes],
-          {
-            type: "application/pdf",
-          }
-        );
-
-      const url =
-        URL.createObjectURL(blob);
-
-      setDownloadUrl(url);
-
-      setMessage(
-        "Final report generated successfully."
+      finalPage.drawPage(
+        reportEmbedded,
+        {
+          x,
+          y,
+          width,
+          height,
+        }
       );
-    } catch (error) {
-      console.error(
-        "PDF GENERATION ERROR:",
-        error
-      );
-
-      setMessage(
-        "PDF generation failed: " +
-          (
-            error?.message ||
-            "Unknown error"
-          )
-      );
-    } finally {
-      setLoading(false);
     }
+
+    /*
+     * Save final PDF
+     */
+
+    const finalBytes =
+      await finalPDF.save();
+
+    const blob =
+      new Blob(
+        [finalBytes],
+        {
+          type: "application/pdf",
+        }
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    setDownloadUrl(url);
+
+    setMessage(
+      `Final report generated successfully. ${reportPDF.getPageCount()} page(s) processed.`
+    );
+
+  } catch (error) {
+
+    console.error(
+      "PDF GENERATION ERROR:",
+      error
+    );
+
+    setMessage(
+      "PDF generation failed: " +
+        (
+          error?.message ||
+          "Unknown error"
+        )
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
   }
 
   /*
