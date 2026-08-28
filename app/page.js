@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PDFDocument } from "pdf-lib";
+import TemplateEditor from "../components/TemplateEditor";
 
 const DEFAULT_SETTINGS = {
   x: 0,
@@ -530,7 +531,42 @@ export default function Home() {
 
         </div>
 
+        {/* VISUAL EDITOR */}
 
+<div className="settings">
+
+  <h2>
+    3. Visual Template Editor
+  </h2>
+
+  <p>
+    Drag the report area to move it.
+    Drag the blue circle to resize it.
+  </p>
+
+  <TemplateEditor
+    x={xPosition}
+    y={yPosition}
+    width={
+      reportWidth > 0
+        ? reportWidth
+        : 400
+    }
+    height={
+      reportHeight > 0
+        ? reportHeight
+        : 550
+    }
+    onChange={(values) => {
+      setXPosition(values.x);
+      setYPosition(values.y);
+      setReportWidth(values.width);
+      setReportHeight(values.height);
+    }}
+  />
+
+</div>
+ 
         {/* STEP 3 */}
 
         <div className="settings">
