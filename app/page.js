@@ -421,6 +421,37 @@ export default function Home() {
   }
 
   /*
+ * ==========================================
+ * FIT REPORT
+ * ==========================================
+ */
+
+function fitReport() {
+  setReportPosition({
+    x: 50,
+    y: 170,
+    width: 500,
+    height: 600,
+  });
+}
+
+
+/*
+ * ==========================================
+ * RESET REPORT POSITION
+ * ==========================================
+ */
+
+function resetReportPosition() {
+  setReportPosition({
+    x: 50,
+    y: 170,
+    width: 500,
+    height: 600,
+  });
+}
+
+  /*
    * ==========================================
    * GENERATE FINAL PDF
    * ==========================================
@@ -861,6 +892,31 @@ export default function Home() {
 
         )}
 
+{/* REPORT CONTROLS */}
+
+{reportFile && (
+
+  <div className="report-controls">
+
+    <button
+      type="button"
+      onClick={fitReport}
+      className="control-button"
+    >
+      Fit Report
+    </button>
+
+    <button
+      type="button"
+      onClick={resetReportPosition}
+      className="control-button"
+    >
+      Reset Position
+    </button>
+
+  </div>
+
+)}
 
         {/* GENERATE */}
 
