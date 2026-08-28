@@ -1,240 +1,276 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PDFDocument } from "pdf-lib";
-import TemplateEditor from "../components/TemplateEditor";
 
-const DEFAULT_SETTINGS = {
-  x: 0,
-  y: 0,
-  width: 0,
-  height: 0,
-};
+const TEMPLATE_WIDTH = 600;
+const TEMPLATE_HEIGHT = 848;
 
 export default function Home() {
   const [reportFile, setReportFile] = useState(null);
-  const [templateFile, setTemplateFile] = useState(null);
 
-  const [templateName, setTemplateName] =
-    useState("My Laboratory Template");
+  const [reportPosition, setReportPosition] = useState({
+    x: 50,
+    y: 170,
+    width: 500,
+    height: 600,
+  });
 
-  const [xPosition, setXPosition] =
-    useState(DEFAULT_SETTINGS.x);
+  const [dragging, setDragging] = useState(false);
+  const [resizing, setResizing] = useState(false);
 
-  const [yPosition, setYPosition] =
-    useState(DEFAULT_SETTINGS.y);
+  const dragStart = useRef(null);
 
-  const [reportWidth, setReportWidth] =
-    useState(DEFAULT_SETTINGS.width);
-
-  const [reportHeight, setReportHeight] =
-    useState(DEFAULT_SETTINGS.height);
-
-  const [savedTemplates, setSavedTemplates] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [downloadUrl, setDownloadUrl] =
-    useState(null);
-
-  const [message, setMessage] =
-    useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState(null);
 
   /*
-   * Load saved templates
+   * --------------------------------------------------
+   * FILE SELECTION
+   * --------------------------------------------------
    */
 
-  useEffect(() => {
-    try {
-      const saved =
-        localStorage.getItem(
-          "medicalLabTemplates"
-        );
-
-      if (saved) {
-        setSavedTemplates(
-          JSON.parse(saved)
-        );
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }, []);
-
-  /*
-   * Upload report
-   */
-
-  function handleReport(event) {
-    const file =
-      event.target.files?.[0];
+  function selectReport(event) {
+    const file = event.target.files?.[0];
 
     if (!file) return;
 
-    if (
-      file.type !==
-      "application/pdf"
-    ) {
-      setMessage(
-        "Please select a PDF file."
-      );
+    if (file.type !== "application/pdf") {
+      setMessage("Please select a PDF file.");
       return;
     }
 
     setReportFile(file);
-    setDownloadUrl(null);
     setMessage("");
+    setDownloadUrl(null);
   }
 
   /*
-   * Upload template
+   * --------------------------------------------------
+   * DRAG & DROP
+   * --------------------------------------------------
    */
 
-  function handleTemplate(event) {
-    const file =
-      event.target.files?.[0];
+  function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const file = event.dataTransfer.files?.[0];
 
     if (!file) return;
 
-    if (
-      file.type !==
-      "application/pdf"
-    ) {
-      setMessage(
-        "Please select a PDF file."
-      );
+    if (file.type !== "application/pdf") {
+      setMessage("Please drop a PDF file.");
       return;
     }
 
-    setTemplateFile(file);
-    setDownloadUrl(null);
+    setReportFile(file);
     setMessage("");
+    setDownloadUrl(null);
   }
 
   /*
-   * Save template settings
+   * --------------------------------------------------
+   * REPORT DRAGGING
+   * --------------------------------------------------
    */
 
-  function saveTemplate() {
-    if (!templateFile) {
-      setMessage(
-        "Please upload a template first."
-      );
-      return;
-    }
+  function startDragging(event) {
+    if (!reportFile) return;
 
-    if (!templateName.trim()) {
-      setMessage(
-        "Please enter a template name."
-      );
-      return;
-    }
+    event.preventDefault();
+    event.stopPropagation();
 
-    const newTemplate = {
-      id: Date.now(),
-      name: templateName.trim(),
+    const point = getPoint(event);
 
-      x: xPosition,
-      y: yPosition,
+    if (!point) return;
 
-      width: reportWidth,
-      height: reportHeight,
+    setDragging(true);
 
-      /*
-       * The PDF itself is not stored
-       * in localStorage.
-       *
-       * We will improve template storage
-       * in the next stage.
-       */
+    dragStart.current = {
+      mouseX: point.x,
+      mouseY: point.y,
+      originalX: reportPosition.x,
+      originalY: reportPosition.y,
     };
 
-    const updated = [
-      ...savedTemplates.filter(
-        (item) =>
-          item.name !==
-          newTemplate.name
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+  }
+
+  function moveDragging(event) {
+    if (!dragging) return;
+
+    const point = getPoint(event);
+
+    if (!point) return;
+
+    const start = dragStart.current;
+
+    const newX =
+      start.originalX +
+      point.x -
+      start.mouseX;
+
+    const newY =
+      start.originalY +
+      point.y -
+      start.mouseY;
+
+    setReportPosition((previous) => ({
+      ...previous,
+      x: Math.max(
+        0,
+        Math.min(
+          TEMPLATE_WIDTH -
+            previous.width,
+          newX
+        )
       ),
-      newTemplate,
-    ];
+      y: Math.max(
+        0,
+        Math.min(
+          TEMPLATE_HEIGHT -
+            previous.height,
+          newY
+        )
+      ),
+    }));
+  }
 
-    setSavedTemplates(updated);
-
-    localStorage.setItem(
-      "medicalLabTemplates",
-      JSON.stringify(updated)
-    );
-
-    setMessage(
-      "Template settings saved successfully."
-    );
+  function stopDragging() {
+    setDragging(false);
   }
 
   /*
-   * Load template settings
+   * --------------------------------------------------
+   * RESIZING
+   * --------------------------------------------------
    */
 
-  function loadTemplate(template) {
-    setTemplateName(
-      template.name
-    );
+  function startResizing(event) {
+    event.preventDefault();
+    event.stopPropagation();
 
-    setXPosition(template.x);
-    setYPosition(template.y);
+    const point = getPoint(event);
 
-    setReportWidth(
-      template.width
-    );
+    if (!point) return;
 
-    setReportHeight(
-      template.height
-    );
+    setResizing(true);
 
-    setMessage(
-      "Template settings loaded."
+    dragStart.current = {
+      mouseX: point.x,
+      mouseY: point.y,
+      originalWidth:
+        reportPosition.width,
+      originalHeight:
+        reportPosition.height,
+    };
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId
     );
   }
 
+  function moveResizing(event) {
+    if (!resizing) return;
+
+    const point = getPoint(event);
+
+    if (!point) return;
+
+    const start = dragStart.current;
+
+    const newWidth = Math.max(
+      150,
+      start.originalWidth +
+        point.x -
+        start.mouseX
+    );
+
+    const newHeight = Math.max(
+      150,
+      start.originalHeight +
+        point.y -
+        start.mouseY
+    );
+
+    setReportPosition((previous) => ({
+      ...previous,
+
+      width: Math.min(
+        newWidth,
+        TEMPLATE_WIDTH -
+          previous.x
+      ),
+
+      height: Math.min(
+        newHeight,
+        TEMPLATE_HEIGHT -
+          previous.y
+      ),
+    }));
+  }
+
+  function stopResizing() {
+    setResizing(false);
+  }
+
   /*
-   * Delete template
+   * --------------------------------------------------
+   * POINTER POSITION
+   * --------------------------------------------------
    */
 
-  function deleteTemplate(id) {
-    const updated =
-      savedTemplates.filter(
-        (item) =>
-          item.id !== id
+  function getPoint(event) {
+    const editor =
+      document.getElementById(
+        "template-editor"
       );
 
-    setSavedTemplates(updated);
+    if (!editor) return null;
 
-    localStorage.setItem(
-      "medicalLabTemplates",
-      JSON.stringify(updated)
-    );
+    const rect =
+      editor.getBoundingClientRect();
 
-    setMessage(
-      "Template deleted."
-    );
+    const scaleX =
+      TEMPLATE_WIDTH /
+      rect.width;
+
+    const scaleY =
+      TEMPLATE_HEIGHT /
+      rect.height;
+
+    return {
+      x:
+        (event.clientX -
+          rect.left) *
+        scaleX,
+
+      y:
+        (event.clientY -
+          rect.top) *
+        scaleY,
+    };
   }
 
   /*
-   * Generate PDF
+   * --------------------------------------------------
+   * GENERATE FINAL PDF
+   * --------------------------------------------------
    */
 
   async function generateReport() {
     if (!reportFile) {
       setMessage(
-        "Please upload the main laboratory report."
-      );
-      return;
-    }
-
-    if (!templateFile) {
-      setMessage(
-        "Please upload the laboratory template."
+        "Please select or drop the main laboratory PDF first."
       );
       return;
     }
@@ -244,46 +280,66 @@ export default function Home() {
       setMessage("");
       setDownloadUrl(null);
 
+      /*
+       * Load report
+       */
+
       const reportBytes =
         await reportFile.arrayBuffer();
-
-      const templateBytes =
-        await templateFile.arrayBuffer();
 
       const reportPDF =
         await PDFDocument.load(
           reportBytes
         );
 
+      /*
+       * Load template
+       */
+
+      const templateResponse =
+        await fetch(
+          "/sample-template.pdf"
+        );
+
+      if (!templateResponse.ok) {
+        throw new Error(
+          "Sample template PDF could not be loaded."
+        );
+      }
+
+      const templateBytes =
+        await templateResponse.arrayBuffer();
+
       const templatePDF =
         await PDFDocument.load(
           templateBytes
         );
 
+      /*
+       * Final PDF
+       */
+
       const finalPDF =
         await PDFDocument.create();
 
-      const reportPageCount =
-        reportPDF.getPageCount();
-
-      const templatePageCount =
-        templatePDF.getPageCount();
+      /*
+       * Process every report page
+       */
 
       for (
         let i = 0;
-        i < reportPageCount;
+        i < reportPDF.getPageCount();
         i++
       ) {
         const reportPage =
           reportPDF.getPage(i);
 
+        /*
+         * Use the first template page.
+         */
+
         const templatePage =
-          templatePDF.getPage(
-            Math.min(
-              i,
-              templatePageCount - 1
-            )
-          );
+          templatePDF.getPage(0);
 
         const templateWidth =
           templatePage.getWidth();
@@ -291,20 +347,14 @@ export default function Home() {
         const templateHeight =
           templatePage.getHeight();
 
-        const originalWidth =
-          reportPage.getWidth();
-
-        const originalHeight =
-          reportPage.getHeight();
-
-        const page =
+        const finalPage =
           finalPDF.addPage([
             templateWidth,
             templateHeight,
           ]);
 
         /*
-         * Template background
+         * Draw template
          */
 
         const [
@@ -314,7 +364,7 @@ export default function Home() {
             templatePage,
           ]);
 
-        page.drawPage(
+        finalPage.drawPage(
           templateEmbedded,
           {
             x: 0,
@@ -325,51 +375,7 @@ export default function Home() {
         );
 
         /*
-         * Report size
-         */
-
-        let width =
-          reportWidth > 0
-            ? reportWidth
-            : originalWidth;
-
-        let height =
-          reportHeight > 0
-            ? reportHeight
-            : originalHeight;
-
-        /*
-         * Keep original ratio
-         * when only width is provided.
-         */
-
-        if (
-          reportWidth > 0 &&
-          reportHeight === 0
-        ) {
-          height =
-            originalHeight *
-            (width /
-              originalWidth);
-        }
-
-        /*
-         * Keep original ratio
-         * when only height is provided.
-         */
-
-        if (
-          reportHeight > 0 &&
-          reportWidth === 0
-        ) {
-          width =
-            originalWidth *
-            (height /
-              originalHeight);
-        }
-
-        /*
-         * Report
+         * Draw report
          */
 
         const [
@@ -379,16 +385,58 @@ export default function Home() {
             reportPage,
           ]);
 
-        page.drawPage(
+        /*
+         * Convert editor coordinates
+         * to actual PDF coordinates.
+         */
+
+        const scaleX =
+          templateWidth /
+          TEMPLATE_WIDTH;
+
+        const scaleY =
+          templateHeight /
+          TEMPLATE_HEIGHT;
+
+        const x =
+          reportPosition.x *
+          scaleX;
+
+        /*
+         * Editor Y starts at TOP.
+         * PDF Y starts at BOTTOM.
+         */
+
+        const height =
+          reportPosition.height *
+          scaleY;
+
+        const y =
+          templateHeight -
+          (
+            reportPosition.y +
+            reportPosition.height
+          ) *
+            scaleY;
+
+        const width =
+          reportPosition.width *
+          scaleX;
+
+        finalPage.drawPage(
           reportEmbedded,
           {
-            x: xPosition,
-            y: yPosition,
+            x,
+            y,
             width,
             height,
           }
         );
       }
+
+      /*
+       * Save
+       */
 
       const finalBytes =
         await finalPDF.save();
@@ -407,28 +455,36 @@ export default function Home() {
       setDownloadUrl(url);
 
       setMessage(
-        "Final laboratory report generated successfully."
+        "Final report generated successfully."
       );
-
     } catch (error) {
-      console.error(error);
+      console.error(
+        "PDF GENERATION ERROR:",
+        error
+      );
 
       setMessage(
         "PDF generation failed: " +
-        (error?.message ||
-          "Unknown error")
+          (
+            error?.message ||
+            "Unknown error"
+          )
       );
-
     } finally {
       setLoading(false);
     }
   }
 
+  /*
+   * --------------------------------------------------
+   * UI
+   * --------------------------------------------------
+   */
+
   return (
     <main className="container">
 
       <header>
-
         <div className="logo">
           🧪
         </div>
@@ -438,236 +494,207 @@ export default function Home() {
         </h1>
 
         <p>
-          Generate professional reports
-          using your laboratory template.
+          Place your main laboratory report
+          on your laboratory template.
         </p>
-
       </header>
 
 
       <section className="card">
 
+        <h2>
+          Laboratory Template
+        </h2>
 
-        {/* STEP 1 */}
+        <p className="editor-help">
+          {reportFile
+            ? "Drag the report to move it. Drag the blue corner to resize it."
+            : "Drop your main laboratory PDF here or select it from your device."}
+        </p>
 
-        <div className="upload-section">
 
-          <h2>
-            1. Main Laboratory Report
-          </h2>
+        {/* TEMPLATE EDITOR */}
 
-          <p>
-            Upload the report received
-            from the main laboratory.
-          </p>
+        <div
+          id="template-editor"
+          className="template-editor-main"
 
-          <label className="upload-box">
+          onDragOver={
+            handleDragOver
+          }
 
-            <span className="upload-icon">
-              📄
-            </span>
+          onDrop={
+            handleDrop
+          }
+        >
 
-            <strong>
-              {reportFile
-                ? reportFile.name
-                : "Choose Main Lab PDF"}
-            </strong>
+          {/* TEMPLATE IMAGE */}
 
-            <small>
-              PDF files only
-            </small>
+          <img
+            src="/sample-template.png"
+            alt="Laboratory Template"
+            className="template-image"
+          />
 
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={
-                handleReport
+
+          {/* DROP AREA */}
+
+          {!reportFile && (
+
+            <div className="drop-area">
+
+              <div className="drop-icon">
+                📄
+              </div>
+
+              <strong>
+                Drop Main Lab PDF Here
+              </strong>
+
+              <span>
+                or
+              </span>
+
+              <label className="select-pdf-button">
+
+                Select PDF
+
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={
+                    selectReport
+                  }
+                />
+
+              </label>
+
+            </div>
+
+          )}
+
+
+          {/* REPORT BOX */}
+
+          {reportFile && (
+
+            <div
+              className="report-overlay"
+
+              style={{
+                left:
+                  `${(
+                    reportPosition.x /
+                    TEMPLATE_WIDTH
+                  ) * 100}%`,
+
+                top:
+                  `${(
+                    reportPosition.y /
+                    TEMPLATE_HEIGHT
+                  ) * 100}%`,
+
+                width:
+                  `${(
+                    reportPosition.width /
+                    TEMPLATE_WIDTH
+                  ) * 100}%`,
+
+                height:
+                  `${(
+                    reportPosition.height /
+                    TEMPLATE_HEIGHT
+                  ) * 100}%`,
+              }}
+
+              onPointerDown={
+                startDragging
               }
-            />
 
-          </label>
+              onPointerMove={
+                moveDragging
+              }
+
+              onPointerUp={
+                stopDragging
+              }
+
+              onPointerCancel={
+                stopDragging
+              }
+            >
+
+              <div className="report-overlay-content">
+
+                <span>
+                  📄
+                </span>
+
+                <strong>
+                  {reportFile.name}
+                </strong>
+
+                <small>
+                  Drag to move
+                </small>
+
+              </div>
+
+
+              {/* RESIZE */}
+
+              <div
+                className="resize-handle-main"
+
+                onPointerDown={
+                  startResizing
+                }
+
+                onPointerMove={
+                  moveResizing
+                }
+
+                onPointerUp={
+                  stopResizing
+                }
+
+                onPointerCancel={
+                  stopResizing
+                }
+              />
+
+            </div>
+
+          )}
 
         </div>
 
 
-        {/* STEP 2 */}
+        {/* FILE INFORMATION */}
 
-        <div className="upload-section">
+        {reportFile && (
 
-          <h2>
-            2. Laboratory Template
-          </h2>
+          <div className="file-information">
 
-          <p>
-            Upload your laboratory
-            header and footer template.
-          </p>
+            <div>
+              <strong>
+                Main Lab Report
+              </strong>
 
-          <label className="upload-box">
+              <span>
+                {reportFile.name}
+              </span>
+            </div>
 
-            <span className="upload-icon">
-              📋
-            </span>
+            <label className="change-file-button">
 
-            <strong>
-              {templateFile
-                ? templateFile.name
-                : "Choose Lab Template"}
-            </strong>
-
-            <small>
-              PDF files only
-            </small>
-
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={
-                handleTemplate
-              }
-            />
-
-          </label>
-
-        </div>
-
-        {/* VISUAL EDITOR */}
-
-<div className="settings">
-
-  <h2>
-    3. Visual Template Editor
-  </h2>
-
-  <p>
-    Drag the report area to move it.
-    Drag the blue circle to resize it.
-  </p>
-
-  <TemplateEditor
-    x={xPosition}
-    y={yPosition}
-    width={
-      reportWidth > 0
-        ? reportWidth
-        : 400
-    }
-    height={
-      reportHeight > 0
-        ? reportHeight
-        : 550
-    }
-    onChange={(values) => {
-      setXPosition(values.x);
-      setYPosition(values.y);
-      setReportWidth(values.width);
-      setReportHeight(values.height);
-    }}
-  />
-
-</div>
- 
-        {/* STEP 3 */}
-
-        <div className="settings">
-
-          <h2>
-            3. Template Settings
-          </h2>
-
-          <p>
-            Configure where the main
-            laboratory report should appear.
-          </p>
-
-
-          <label className="template-name">
-
-            Template Name
-
-            <input
-              type="text"
-              value={templateName}
-              onChange={(e) =>
-                setTemplateName(
-                  e.target.value
-                )
-              }
-            />
-
-          </label>
-
-
-          <div className="settings-grid">
-
-            <label>
-              X Position
+              Change PDF
 
               <input
-                type="number"
-                value={xPosition}
-                onChange={(e) =>
-                  setXPosition(
-                    Number(
-                      e.target.value
-                    )
-                  )
-                }
-              />
-
-            </label>
-
-
-            <label>
-              Y Position
-
-              <input
-                type="number"
-                value={yPosition}
-                onChange={(e) =>
-                  setYPosition(
-                    Number(
-                      e.target.value
-                    )
-                  )
-                }
-              />
-
-            </label>
-
-
-            <label>
-              Report Width
-
-              <input
-                type="number"
-                value={reportWidth}
-                placeholder="Original"
-                onChange={(e) =>
-                  setReportWidth(
-                    Number(
-                      e.target.value
-                    )
-                  )
-                }
-              />
-
-            </label>
-
-
-            <label>
-              Report Height
-
-              <input
-                type="number"
-                value={reportHeight}
-                placeholder="Original"
-                onChange={(e) =>
-                  setReportHeight(
-                    Number(
-                      e.target.value
-                    )
-                  )
+                type="file"
+                accept="application/pdf"
+                onChange={
+                  selectReport
                 }
               />
 
@@ -675,82 +702,42 @@ export default function Home() {
 
           </div>
 
-
-          <button
-            className="secondary-button"
-            onClick={saveTemplate}
-          >
-            💾 Save Template Settings
-          </button>
-
-        </div>
+        )}
 
 
-        {/* SAVED TEMPLATES */}
+        {/* POSITION */}
 
-        {savedTemplates.length > 0 && (
+        {reportFile && (
 
-          <div className="saved-templates">
+          <div className="position-information">
 
-            <h2>
-              Saved Templates
-            </h2>
+            <span>
+              X:{" "}
+              {Math.round(
+                reportPosition.x
+              )}
+            </span>
 
-            {savedTemplates.map(
-              (template) => (
+            <span>
+              Y:{" "}
+              {Math.round(
+                reportPosition.y
+              )}
+            </span>
 
-                <div
-                  key={template.id}
-                  className="saved-template"
-                >
+            <span>
+              W:{" "}
+              {Math.round(
+                reportPosition.width
+              )}
+            </span>
 
-                  <div>
-
-                    <strong>
-                      {template.name}
-                    </strong>
-
-                    <small>
-                      X: {template.x}
-                      {" | "}
-                      Y: {template.y}
-                      {" | "}
-                      W: {template.width}
-                      {" | "}
-                      H: {template.height}
-                    </small>
-
-                  </div>
-
-
-                  <div className="template-actions">
-
-                    <button
-                      onClick={() =>
-                        loadTemplate(
-                          template
-                        )
-                      }
-                    >
-                      Load
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        deleteTemplate(
-                          template.id
-                        )
-                      }
-                    >
-                      Delete
-                    </button>
-
-                  </div>
-
-                </div>
-
-              )
-            )}
+            <span>
+              H:{" "}
+              {Math.round(
+                reportPosition.height
+              )}
+            </span>
 
           </div>
 
@@ -760,17 +747,15 @@ export default function Home() {
         {/* GENERATE */}
 
         <button
-          className="generate-button"
+          className="generate-button-main"
           onClick={
             generateReport
           }
           disabled={loading}
         >
-
           {loading
-            ? "Generating..."
+            ? "Generating Final PDF..."
             : "Generate Final Report"}
-
         </button>
 
 
@@ -792,7 +777,7 @@ export default function Home() {
           <a
             href={downloadUrl}
             download="medical-lab-report.pdf"
-            className="download-button"
+            className="download-button-main"
           >
             ⬇️ Download Final Report
           </a>
@@ -803,14 +788,10 @@ export default function Home() {
 
 
       <footer>
-
         🔒 Your PDF is processed directly
         in your browser.
-
         <br />
-
         No database • No backend • No server upload
-
       </footer>
 
     </main>
