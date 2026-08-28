@@ -2,153 +2,200 @@
 
 import { useState } from "react";
 import { PDFDocument } from "pdf-lib";
+import PDFPreview from "../components/PDFPreview";
 
 export default function Home() {
+
   const [reportFile, setReportFile] = useState(null);
   const [templateFile, setTemplateFile] = useState(null);
 
-  const [reportPreview, setReportPreview] = useState(null);
-  const [templatePreview, setTemplatePreview] = useState(null);
-
   const [downloadUrl, setDownloadUrl] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Report PDF
   function handleReportUpload(event) {
+
     const file = event.target.files?.[0];
 
     if (!file) return;
 
     setReportFile(file);
-
-    const url = URL.createObjectURL(file);
-    setReportPreview(url);
-
     setDownloadUrl(null);
     setMessage("");
   }
 
-  // Template PDF
   function handleTemplateUpload(event) {
+
     const file = event.target.files?.[0];
 
     if (!file) return;
 
     setTemplateFile(file);
-
-    const url = URL.createObjectURL(file);
-    setTemplatePreview(url);
-
     setDownloadUrl(null);
     setMessage("");
   }
 
-  // Generate final PDF
   async function generateReport() {
+
     if (!reportFile) {
-      setMessage("Please upload the main laboratory report.");
+      setMessage(
+        "Please upload the main laboratory report."
+      );
       return;
     }
 
     if (!templateFile) {
-      setMessage("Please upload the laboratory template.");
+      setMessage(
+        "Please upload the laboratory template."
+      );
       return;
     }
 
     try {
+
       setLoading(true);
       setMessage("");
       setDownloadUrl(null);
 
-      const reportBytes = await reportFile.arrayBuffer();
-      const templateBytes = await templateFile.arrayBuffer();
+      const reportBytes =
+        await reportFile.arrayBuffer();
 
-      const reportPDF = await PDFDocument.load(reportBytes);
-      const templatePDF = await PDFDocument.load(templateBytes);
+      const templateBytes =
+        await templateFile.arrayBuffer();
 
-      const finalPDF = await PDFDocument.create();
+      const reportPDF =
+        await PDFDocument.load(reportBytes);
 
-      const reportPages = await finalPDF.copyPages(
-        reportPDF,
-        reportPDF.getPageIndices()
-      );
+      const templatePDF =
+        await PDFDocument.load(templateBytes);
 
-      const templatePages = await finalPDF.copyPages(
-        templatePDF,
-        templatePDF.getPageIndices()
-      );
+      const finalPDF =
+        await PDFDocument.create();
 
-      for (let i = 0; i < reportPages.length; i++) {
-        const reportPage = reportPages[i];
+      const reportPages =
+        await finalPDF.copyPages(
+          reportPDF,
+          reportPDF.getPageIndices()
+        );
 
-        const width = reportPage.getWidth();
-        const height = reportPage.getHeight();
+      const templatePages =
+        await finalPDF.copyPages(
+          templatePDF,
+          templatePDF.getPageIndices()
+        );
 
-        const page = finalPDF.addPage([width, height]);
+      for (
+        let i = 0;
+        i < reportPages.length;
+        i++
+      ) {
 
-        // Template
+        const reportPage =
+          reportPages[i];
+
+        const width =
+          reportPage.getWidth();
+
+        const height =
+          reportPage.getHeight();
+
+        const page =
+          finalPDF.addPage([
+            width,
+            height,
+          ]);
+
         const templatePage =
-          templatePages[Math.min(i, templatePages.length - 1)];
+          templatePages[
+            Math.min(
+              i,
+              templatePages.length - 1
+            )
+          ];
 
-        page.drawPage(templatePage, {
-          x: 0,
-          y: 0,
-          width: width,
-          height: height,
-        });
+        page.drawPage(
+          templatePage,
+          {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+          }
+        );
 
-        // Report
-        page.drawPage(reportPage, {
-          x: 0,
-          y: 0,
-          width: width,
-          height: height,
-        });
+        page.drawPage(
+          reportPage,
+          {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+          }
+        );
       }
 
-      const finalBytes = await finalPDF.save();
+      const finalBytes =
+        await finalPDF.save();
 
-      const blob = new Blob([finalBytes], {
-        type: "application/pdf",
-      });
+      const blob =
+        new Blob(
+          [finalBytes],
+          {
+            type: "application/pdf",
+          }
+        );
 
-      const url = URL.createObjectURL(blob);
+      const url =
+        URL.createObjectURL(blob);
 
       setDownloadUrl(url);
-      setMessage("Report generated successfully!");
+
+      setMessage(
+        "Report generated successfully!"
+      );
+
     } catch (error) {
+
       console.error(error);
-      setMessage("Unable to generate the report.");
+
+      setMessage(
+        "Unable to generate the report."
+      );
+
     } finally {
+
       setLoading(false);
+
     }
   }
 
   return (
+
     <main className="container">
 
-      {/* Header */}
-
       <header>
-        <div className="logo">🧪</div>
+
+        <div className="logo">
+          🧪
+        </div>
 
         <h1>
           Medical Lab Report Generator
         </h1>
 
         <p>
-          Generate a professional laboratory report
-          using your own laboratory template.
+          Generate a professional laboratory
+          report using your laboratory template.
         </p>
+
       </header>
 
 
-      {/* Main Card */}
-
       <section className="card">
 
-        {/* Report */}
+
+        {/* MAIN REPORT */}
 
         <div className="upload-section">
 
@@ -157,7 +204,8 @@ export default function Home() {
           </h2>
 
           <p>
-            Upload the PDF received from the main laboratory.
+            Upload the PDF received from the
+            main laboratory.
           </p>
 
           <label className="upload-box">
@@ -179,7 +227,9 @@ export default function Home() {
             <input
               type="file"
               accept="application/pdf"
-              onChange={handleReportUpload}
+              onChange={
+                handleReportUpload
+              }
             />
 
           </label>
@@ -187,26 +237,26 @@ export default function Home() {
         </div>
 
 
-        {/* Report Preview */}
+        {/* REPORT PREVIEW */}
 
-        {reportPreview && (
+        {reportFile && (
+
           <div className="preview-section">
 
             <h3>
               Report Preview
             </h3>
 
-            <iframe
-              src={reportPreview}
-              className="pdf-preview"
-              title="Main laboratory report"
+            <PDFPreview
+              file={reportFile}
             />
 
           </div>
+
         )}
 
 
-        {/* Template */}
+        {/* TEMPLATE */}
 
         <div className="upload-section">
 
@@ -215,8 +265,8 @@ export default function Home() {
           </h2>
 
           <p>
-            Upload your laboratory header and footer
-            template.
+            Upload your laboratory header
+            and footer template.
           </p>
 
           <label className="upload-box">
@@ -238,7 +288,9 @@ export default function Home() {
             <input
               type="file"
               accept="application/pdf"
-              onChange={handleTemplateUpload}
+              onChange={
+                handleTemplateUpload
+              }
             />
 
           </label>
@@ -246,50 +298,55 @@ export default function Home() {
         </div>
 
 
-        {/* Template Preview */}
+        {/* TEMPLATE PREVIEW */}
 
-        {templatePreview && (
+        {templateFile && (
+
           <div className="preview-section">
 
             <h3>
               Template Preview
             </h3>
 
-            <iframe
-              src={templatePreview}
-              className="pdf-preview"
-              title="Laboratory template"
+            <PDFPreview
+              file={templateFile}
             />
 
           </div>
+
         )}
 
 
-        {/* Generate */}
+        {/* GENERATE */}
 
         <button
           className="generate-button"
           onClick={generateReport}
           disabled={loading}
         >
+
           {loading
             ? "Generating Report..."
             : "Generate Final Report"}
+
         </button>
 
 
-        {/* Message */}
+        {/* MESSAGE */}
 
         {message && (
+
           <div className="message">
             {message}
           </div>
+
         )}
 
 
-        {/* Download */}
+        {/* DOWNLOAD */}
 
         {downloadUrl && (
+
           <a
             href={downloadUrl}
             download="medical-lab-report.pdf"
@@ -297,17 +354,21 @@ export default function Home() {
           >
             ⬇️ Download Final PDF
           </a>
+
         )}
 
       </section>
 
 
-      {/* Privacy */}
-
       <footer>
-        🔒 Your PDF is processed directly in your browser.
+
+        🔒 Your PDF is processed directly
+        in your browser.
+
         <br />
+
         No database or backend is required.
+
       </footer>
 
     </main>
