@@ -8,10 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-  "next": "15.5.23",
-  "react": "19.1.0",
-  "react-dom": "19.1.0",
+  "next": "...",
+  "react": "...",
+  "react-dom": "...",
   "pdf-lib": "^1.17.1",
-  "pdfjs-dist": "^4.10.38"
+  "pdfjs-dist": "^5.4.149"
   }
 }
