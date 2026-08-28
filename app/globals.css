@@ -621,3 +621,452 @@ footer {
   }
 
   }
+
+/* =========================================
+   MAIN TEMPLATE EDITOR
+   ========================================= */
+
+.template-editor-main {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 25px auto;
+
+  aspect-ratio: 600 / 848;
+
+  background: white;
+
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+
+  overflow: hidden;
+
+  touch-action: none;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Template image */
+
+.template-image {
+  position: absolute;
+
+  left: 0;
+  top: 0;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: fill;
+
+  user-select: none;
+  pointer-events: none;
+}
+
+
+/* Drop area */
+
+.drop-area {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  transform:
+    translate(-50%, -50%);
+
+  width: 70%;
+
+  padding: 35px 20px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  text-align: center;
+
+  background: rgba(
+    255,
+    255,
+    255,
+    0.96
+  );
+
+  border: 2px dashed #2563eb;
+
+  border-radius: 14px;
+
+  box-shadow:
+    0 8px 25px rgba(
+      0,
+      0,
+      0,
+      0.12
+    );
+
+  z-index: 10;
+}
+
+
+.drop-icon {
+  font-size: 38px;
+}
+
+
+.drop-area strong {
+  font-size: 17px;
+  color: #1f2937;
+}
+
+
+.drop-area span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+
+/* Select PDF */
+
+.select-pdf-button {
+  display: inline-block;
+
+  padding: 10px 20px;
+
+  background: #2563eb;
+
+  color: white;
+
+  border-radius: 8px;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.select-pdf-button input {
+  display: none;
+}
+
+
+/* Report overlay */
+
+.report-overlay {
+  position: absolute;
+
+  box-sizing: border-box;
+
+  border: 2px dashed #2563eb;
+
+  background: rgba(
+    37,
+    99,
+    235,
+    0.12
+  );
+
+  cursor: move;
+
+  z-index: 20;
+
+  touch-action: none;
+
+  user-select: none;
+}
+
+
+/* Report content */
+
+.report-overlay-content {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  text-align: center;
+
+  color: #2563eb;
+
+  pointer-events: none;
+
+  padding: 10px;
+
+  box-sizing: border-box;
+}
+
+
+.report-overlay-content span {
+  font-size: 28px;
+}
+
+
+.report-overlay-content strong {
+  font-size: 13px;
+
+  overflow: hidden;
+
+  max-width: 90%;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+.report-overlay-content small {
+  font-size: 11px;
+}
+
+
+/* Resize handle */
+
+.resize-handle-main {
+  position: absolute;
+
+  right: -7px;
+  bottom: -7px;
+
+  width: 20px;
+  height: 20px;
+
+  border-radius: 50%;
+
+  background: #2563eb;
+
+  border: 2px solid white;
+
+  cursor: nwse-resize;
+
+  touch-action: none;
+}
+
+
+/* File information */
+
+.file-information {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  gap: 15px;
+
+  padding: 14px;
+
+  margin-top: 15px;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 10px;
+
+  background: #f9fafb;
+}
+
+
+.file-information strong {
+  display: block;
+
+  font-size: 14px;
+
+  margin-bottom: 4px;
+}
+
+
+.file-information span {
+  display: block;
+
+  max-width: 280px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  font-size: 12px;
+
+  color: #6b7280;
+}
+
+
+/* Change file */
+
+.change-file-button {
+  padding: 9px 13px;
+
+  background: #e5e7eb;
+
+  color: #374151;
+
+  border-radius: 7px;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+}
+
+
+.change-file-button input {
+  display: none;
+}
+
+
+/* Position information */
+
+.position-information {
+  display: flex;
+
+  justify-content: center;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+
+  margin: 14px 0;
+}
+
+
+.position-information span {
+  padding: 6px 10px;
+
+  background: #f3f4f6;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+
+  color: #4b5563;
+}
+
+
+/* Generate */
+
+.generate-button-main {
+  width: 100%;
+
+  margin-top: 15px;
+
+  padding: 14px;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: #123b68;
+
+  color: white;
+
+  font-size: 16px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+
+.generate-button-main:hover {
+  opacity: 0.92;
+}
+
+
+.generate-button-main:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+}
+
+
+/* Download */
+
+.download-button-main {
+  display: block;
+
+  width: 100%;
+
+  box-sizing: border-box;
+
+  margin-top: 12px;
+
+  padding: 14px;
+
+  text-align: center;
+
+  text-decoration: none;
+
+  border-radius: 10px;
+
+  background: #15803d;
+
+  color: white;
+
+  font-weight: 700;
+}
+
+
+/* Help */
+
+.editor-help {
+  text-align: center;
+
+  color: #6b7280;
+
+  font-size: 14px;
+
+  margin-bottom: 15px;
+}
+
+
+/* Mobile */
+
+@media (max-width: 600px) {
+
+  .template-editor-main {
+    width: 100%;
+
+    border-radius: 5px;
+  }
+
+  .drop-area {
+    width: 78%;
+
+    padding: 25px 12px;
+  }
+
+  .drop-area strong {
+    font-size: 14px;
+  }
+
+  .drop-icon {
+    font-size: 30px;
+  }
+
+  .file-information {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .change-file-button {
+    text-align: center;
+  }
+
+  }
