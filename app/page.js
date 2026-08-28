@@ -8,6 +8,7 @@ const TEMPLATE_HEIGHT = 848;
 
 export default function Home() {
   const [reportFile, setReportFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const [reportPosition, setReportPosition] = useState({
     x: 50,
@@ -26,30 +27,152 @@ export default function Home() {
   const [downloadUrl, setDownloadUrl] = useState(null);
 
   /*
-   * --------------------------------------------------
+   * ==========================================
+   * CREATE PDF PREVIEW
+   * ==========================================
+   */
+
+  useEffect(() => {
+    if (!reportFile) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    let objectUrl = null;
+
+    async function createPreview() {
+      try {
+        setMessage("Loading report preview...");
+
+        const pdfjs =
+          await import("pdfjs-dist");
+
+        const pdfjsLib =
+          pdfjs;
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+        const arrayBuffer =
+          await reportFile.arrayBuffer();
+
+        const pdf =
+          await pdfjsLib.getDocument({
+            data: arrayBuffer,
+          }).promise;
+
+        /*
+         * Show first page in editor.
+         */
+
+        const page =
+          await pdf.getPage(1);
+
+        const originalViewport =
+          page.getViewport({
+            scale: 1,
+          });
+
+        const desiredWidth = 1000;
+
+        const scale =
+          desiredWidth /
+          originalViewport.width;
+
+        const viewport =
+          page.getViewport({
+            scale,
+          });
+
+        const canvas =
+          document.createElement("canvas");
+
+        const context =
+          canvas.getContext("2d");
+
+        canvas.width =
+          viewport.width;
+
+        canvas.height =
+          viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+        }).promise;
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              setMessage(
+                "Unable to create PDF preview."
+              );
+              return;
+            }
+
+            objectUrl =
+              URL.createObjectURL(blob);
+
+            setPreviewUrl(objectUrl);
+
+            setMessage("");
+          },
+          "image/png"
+        );
+      } catch (error) {
+        console.error(
+          "PDF PREVIEW ERROR:",
+          error
+        );
+
+        setPreviewUrl(null);
+
+        setMessage(
+          "Unable to display PDF preview."
+        );
+      }
+    }
+
+    createPreview();
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [reportFile]);
+
+  /*
+   * ==========================================
    * FILE SELECTION
-   * --------------------------------------------------
+   * ==========================================
    */
 
   function selectReport(event) {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      setMessage("Please select a PDF file.");
+    if (
+      file.type !==
+      "application/pdf"
+    ) {
+      setMessage(
+        "Please select a PDF file."
+      );
       return;
     }
 
     setReportFile(file);
-    setMessage("");
     setDownloadUrl(null);
+    setMessage("");
   }
 
   /*
-   * --------------------------------------------------
+   * ==========================================
    * DRAG & DROP
-   * --------------------------------------------------
+   * ==========================================
    */
 
   function handleDragOver(event) {
@@ -61,172 +184,30 @@ export default function Home() {
     event.preventDefault();
     event.stopPropagation();
 
-    const file = event.dataTransfer.files?.[0];
+    const file =
+      event.dataTransfer.files?.[0];
 
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      setMessage("Please drop a PDF file.");
+    if (
+      file.type !==
+      "application/pdf"
+    ) {
+      setMessage(
+        "Please drop a PDF file."
+      );
       return;
     }
 
     setReportFile(file);
-    setMessage("");
     setDownloadUrl(null);
+    setMessage("");
   }
 
   /*
-   * --------------------------------------------------
-   * REPORT DRAGGING
-   * --------------------------------------------------
-   */
-
-  function startDragging(event) {
-    if (!reportFile) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const point = getPoint(event);
-
-    if (!point) return;
-
-    setDragging(true);
-
-    dragStart.current = {
-      mouseX: point.x,
-      mouseY: point.y,
-      originalX: reportPosition.x,
-      originalY: reportPosition.y,
-    };
-
-    event.currentTarget.setPointerCapture(
-      event.pointerId
-    );
-  }
-
-  function moveDragging(event) {
-    if (!dragging) return;
-
-    const point = getPoint(event);
-
-    if (!point) return;
-
-    const start = dragStart.current;
-
-    const newX =
-      start.originalX +
-      point.x -
-      start.mouseX;
-
-    const newY =
-      start.originalY +
-      point.y -
-      start.mouseY;
-
-    setReportPosition((previous) => ({
-      ...previous,
-      x: Math.max(
-        0,
-        Math.min(
-          TEMPLATE_WIDTH -
-            previous.width,
-          newX
-        )
-      ),
-      y: Math.max(
-        0,
-        Math.min(
-          TEMPLATE_HEIGHT -
-            previous.height,
-          newY
-        )
-      ),
-    }));
-  }
-
-  function stopDragging() {
-    setDragging(false);
-  }
-
-  /*
-   * --------------------------------------------------
-   * RESIZING
-   * --------------------------------------------------
-   */
-
-  function startResizing(event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const point = getPoint(event);
-
-    if (!point) return;
-
-    setResizing(true);
-
-    dragStart.current = {
-      mouseX: point.x,
-      mouseY: point.y,
-      originalWidth:
-        reportPosition.width,
-      originalHeight:
-        reportPosition.height,
-    };
-
-    event.currentTarget.setPointerCapture(
-      event.pointerId
-    );
-  }
-
-  function moveResizing(event) {
-    if (!resizing) return;
-
-    const point = getPoint(event);
-
-    if (!point) return;
-
-    const start = dragStart.current;
-
-    const newWidth = Math.max(
-      150,
-      start.originalWidth +
-        point.x -
-        start.mouseX
-    );
-
-    const newHeight = Math.max(
-      150,
-      start.originalHeight +
-        point.y -
-        start.mouseY
-    );
-
-    setReportPosition((previous) => ({
-      ...previous,
-
-      width: Math.min(
-        newWidth,
-        TEMPLATE_WIDTH -
-          previous.x
-      ),
-
-      height: Math.min(
-        newHeight,
-        TEMPLATE_HEIGHT -
-          previous.y
-      ),
-    }));
-  }
-
-  function stopResizing() {
-    setResizing(false);
-  }
-
-  /*
-   * --------------------------------------------------
-   * POINTER POSITION
-   * --------------------------------------------------
+   * ==========================================
+   * GET POINTER POSITION
+   * ==========================================
    */
 
   function getPoint(event) {
@@ -262,9 +243,187 @@ export default function Home() {
   }
 
   /*
-   * --------------------------------------------------
+   * ==========================================
+   * START DRAGGING
+   * ==========================================
+   */
+
+  function startDragging(event) {
+    if (!reportFile) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point =
+      getPoint(event);
+
+    if (!point) return;
+
+    setDragging(true);
+
+    dragStart.current = {
+      mouseX: point.x,
+      mouseY: point.y,
+      originalX:
+        reportPosition.x,
+      originalY:
+        reportPosition.y,
+    };
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+  }
+
+  /*
+   * ==========================================
+   * MOVE REPORT
+   * ==========================================
+   */
+
+  function moveDragging(event) {
+    if (!dragging) return;
+
+    const point =
+      getPoint(event);
+
+    if (!point) return;
+
+    const start =
+      dragStart.current;
+
+    const newX =
+      start.originalX +
+      point.x -
+      start.mouseX;
+
+    const newY =
+      start.originalY +
+      point.y -
+      start.mouseY;
+
+    setReportPosition(
+      (previous) => ({
+        ...previous,
+
+        x: Math.max(
+          0,
+          Math.min(
+            TEMPLATE_WIDTH -
+              previous.width,
+            newX
+          )
+        ),
+
+        y: Math.max(
+          0,
+          Math.min(
+            TEMPLATE_HEIGHT -
+              previous.height,
+            newY
+          )
+        ),
+      })
+    );
+  }
+
+  function stopDragging() {
+    setDragging(false);
+  }
+
+  /*
+   * ==========================================
+   * START RESIZE
+   * ==========================================
+   */
+
+  function startResizing(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point =
+      getPoint(event);
+
+    if (!point) return;
+
+    setResizing(true);
+
+    dragStart.current = {
+      mouseX: point.x,
+      mouseY: point.y,
+
+      originalWidth:
+        reportPosition.width,
+
+      originalHeight:
+        reportPosition.height,
+    };
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+  }
+
+  /*
+   * ==========================================
+   * RESIZE REPORT
+   * ==========================================
+   */
+
+  function moveResizing(event) {
+    if (!resizing) return;
+
+    const point =
+      getPoint(event);
+
+    if (!point) return;
+
+    const start =
+      dragStart.current;
+
+    const newWidth =
+      Math.max(
+        150,
+        start.originalWidth +
+          point.x -
+          start.mouseX
+      );
+
+    const newHeight =
+      Math.max(
+        150,
+        start.originalHeight +
+          point.y -
+          start.mouseY
+      );
+
+    setReportPosition(
+      (previous) => ({
+        ...previous,
+
+        width: Math.min(
+          newWidth,
+          TEMPLATE_WIDTH -
+            previous.x
+        ),
+
+        height: Math.min(
+          newHeight,
+          TEMPLATE_HEIGHT -
+            previous.y
+        ),
+      })
+    );
+  }
+
+  function stopResizing() {
+    setResizing(false);
+  }
+
+  /*
+   * ==========================================
    * GENERATE FINAL PDF
-   * --------------------------------------------------
+   * ==========================================
    */
 
   async function generateReport() {
@@ -280,10 +439,6 @@ export default function Home() {
       setMessage("");
       setDownloadUrl(null);
 
-      /*
-       * Load report
-       */
-
       const reportBytes =
         await reportFile.arrayBuffer();
 
@@ -291,10 +446,6 @@ export default function Home() {
         await PDFDocument.load(
           reportBytes
         );
-
-      /*
-       * Load template
-       */
 
       const templateResponse =
         await fetch(
@@ -315,16 +466,8 @@ export default function Home() {
           templateBytes
         );
 
-      /*
-       * Final PDF
-       */
-
       const finalPDF =
         await PDFDocument.create();
-
-      /*
-       * Process every report page
-       */
 
       for (
         let i = 0;
@@ -333,10 +476,6 @@ export default function Home() {
       ) {
         const reportPage =
           reportPDF.getPage(i);
-
-        /*
-         * Use the first template page.
-         */
 
         const templatePage =
           templatePDF.getPage(0);
@@ -352,10 +491,6 @@ export default function Home() {
             templateWidth,
             templateHeight,
           ]);
-
-        /*
-         * Draw template
-         */
 
         const [
           templateEmbedded,
@@ -374,21 +509,12 @@ export default function Home() {
           }
         );
 
-        /*
-         * Draw report
-         */
-
         const [
           reportEmbedded,
         ] =
           await finalPDF.embedPages([
             reportPage,
           ]);
-
-        /*
-         * Convert editor coordinates
-         * to actual PDF coordinates.
-         */
 
         const scaleX =
           templateWidth /
@@ -402,10 +528,9 @@ export default function Home() {
           reportPosition.x *
           scaleX;
 
-        /*
-         * Editor Y starts at TOP.
-         * PDF Y starts at BOTTOM.
-         */
+        const width =
+          reportPosition.width *
+          scaleX;
 
         const height =
           reportPosition.height *
@@ -419,10 +544,6 @@ export default function Home() {
           ) *
             scaleY;
 
-        const width =
-          reportPosition.width *
-          scaleX;
-
         finalPage.drawPage(
           reportEmbedded,
           {
@@ -433,10 +554,6 @@ export default function Home() {
           }
         );
       }
-
-      /*
-       * Save
-       */
 
       const finalBytes =
         await finalPDF.save();
@@ -476,9 +593,9 @@ export default function Home() {
   }
 
   /*
-   * --------------------------------------------------
+   * ==========================================
    * UI
-   * --------------------------------------------------
+   * ==========================================
    */
 
   return (
@@ -528,7 +645,7 @@ export default function Home() {
           }
         >
 
-          {/* TEMPLATE IMAGE */}
+          {/* TEMPLATE */}
 
           <img
             src="/sample-template.png"
@@ -574,7 +691,7 @@ export default function Home() {
           )}
 
 
-          {/* REPORT BOX */}
+          {/* ACTUAL REPORT PREVIEW */}
 
           {reportFile && (
 
@@ -624,24 +741,25 @@ export default function Home() {
               }
             >
 
-              <div className="report-overlay-content">
+              {previewUrl ? (
 
-                <span>
-                  📄
-                </span>
+                <img
+                  src={previewUrl}
+                  alt="Main laboratory report preview"
+                  className="report-preview-image"
+                  draggable="false"
+                />
 
-                <strong>
-                  {reportFile.name}
-                </strong>
+              ) : (
 
-                <small>
-                  Drag to move
-                </small>
+                <div className="preview-loading">
+                  Loading PDF...
+                </div>
 
-              </div>
+              )}
 
 
-              {/* RESIZE */}
+              {/* RESIZE HANDLE */}
 
               <div
                 className="resize-handle-main"
@@ -796,4 +914,4 @@ export default function Home() {
 
     </main>
   );
-      }
+              }
