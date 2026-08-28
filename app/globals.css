@@ -233,3 +233,36 @@ footer {
   border-radius: 12px;
   background: #f3f4f6;
   }
+
+/* PDF Preview */
+
+.pdf-preview-container {
+  width: 100%;
+  background: #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+  overflow: auto;
+  text-align: center;
+  min-height: 200px;
+}
+
+.pdf-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.pdf-loading {
+  padding: 40px 10px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.pdf-error {
+  padding: 30px 10px;
+  color: #dc2626;
+  font-size: 14px;
+}
